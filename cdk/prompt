@@ -1,0 +1,44 @@
+I have an LLM CLI tool.
+
+This CLI tool includes an option, `--imageURLs`. When arguments are passed
+to this flag, the LLM will process the image(s) associated with the URLs.
+
+This is straightforward enough. Getting local files exposed via a URL has been
+annoying though. Currently what I do for this is spin up a python HTTP server
+on localhost:8888 then use 'ngrok http 8888' to tunnel traffic from a public
+URL to my HTTP server. Then I can just add my file to the local HTTP server
+and let ngrok do the rest.
+
+This set works but is also annoying. For instance, if I'm doing this in
+a bash script, I need to set the script up to check if ngrok is running,
+exit if it is, and otherwise kick off a python http server and ngrok in the
+background. I also need really solid error handling to make sure the ngrok
+tunnel and http server i spin up actually get cleaned up.
+
+Fortunately, I have a fix. Instead of doing the ngrok/python dance, I
+plan on creating a CLI utility, `urlify`. Behind the scenes, `urlify`
+will take the file(s) listed on stdin and upload them to an S3 bucket
+I own. I will then use S3 to generate a temporary URL that can be
+used to access the file for some period of time.
+
+The files should be removed after 30 minutes.
+
+The `urlify` tool needs two pieces:
+
+  1) An initial terraform component. This terraform code will spin up a
+     private bucket in whatever account my default ~/.aws/credentials profile
+     is pointing to. The bucket should have a lifecycle rule that cleans up
+     files after 30 minutes of upload
+
+  2) A second `urlify` component that can be invoked from the CLI. The `urlify`
+     component is used to urlify the file(s) provided via command line arguments.
+     It will be written in Go. The most basic usage for this would be
+
+     ```bash
+     > urlify image.jpg
+     https://s3.us-east-1/........ # return URL from urlify
+     ```
+
+Write the initial terraform code for component (1) as described above. Also,
+generate a README.md clearly explaining how to interact with and deploy
+this code.
